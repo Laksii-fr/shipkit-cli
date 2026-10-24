@@ -94,7 +94,10 @@ In another terminal (CLI venv activated):
 ```bash
 # short-lived image that prints to stdout then exits
 shipkit run demo hello-world
+# or pass a command (replaces the image CMD):
+shipkit run demo alpine echo "ERROR timeout talking to db"
 shipkit logs --service demo --since 1h
+shipkit logs --service demo --level error --grep timeout
 curl http://localhost:8000/health
 ```
 

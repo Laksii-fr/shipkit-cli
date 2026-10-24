@@ -44,6 +44,10 @@ def detect_level(raw_line: str) -> tuple[str, str]:
 class ContainerProtocol(Protocol):
     def logs(self, stream: bool = True, follow: bool = True): ...
 
+    def stop(self, timeout: int = 5) -> None: ...
+
+    def remove(self, force: bool = True) -> None: ...
+
 
 class DockerClientProtocol(Protocol):
     containers: object
@@ -63,11 +67,28 @@ def create_docker_client() -> DockerClientProtocol:
     return client
 
 
+def _cleanup_container(container: object) -> None:
+    """Stop and remove a container; never raise into the caller."""
+    try:
+        stop = getattr(container, "stop", None)
+        if callable(stop):
+            stop(timeout=5)
+    except Exception:  # noqa: BLE001 - cleanup must not mask the real error
+        pass
+    try:
+        remove = getattr(container, "remove", None)
+        if callable(remove):
+            remove(force=True)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def run_container(
     *,
     service: str,
     image: str,
     collector_url: str,
+    command: list[str] | None = None,
     docker_client: DockerClientProtocol | None = None,
     shipper: LogShipper | None = None,
 ) -> int:
@@ -75,8 +96,12 @@ def run_container(
     client = docker_client or create_docker_client()
     own_shipper = shipper is None
     sender = shipper or LogShipper(collector_url)
+    container = None
     try:
-        container = client.containers.run(image, detach=True)  # type: ignore[attr-defined]
+        run_kwargs: dict = {"detach": True}
+        if command:
+            run_kwargs["command"] = command
+        container = client.containers.run(image, **run_kwargs)  # type: ignore[attr-defined]
         for raw in container.logs(stream=True, follow=True):
             line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
             for single in line.splitlines():
@@ -92,6 +117,8 @@ def run_container(
                     )
                 )
     finally:
+        if container is not None:
+            _cleanup_container(container)
         if own_shipper:
             sender.close()  # flushes the remaining buffered lines
     return sender.shipped

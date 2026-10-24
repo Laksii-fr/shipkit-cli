@@ -13,8 +13,8 @@ cd examples/monorepo
 git init -b main && git add . && git commit -m "feat: initial monorepo"
 git checkout -b change-api
 # edit services/api/apilib/__init__.py, commit it
-shipkit ci --base main --dry-run    # plan: only api
-shipkit ci --base main              # runs only api in Docker
+shipkit ci --base main --dry-run    # plan: api (+ gateway, which depends on api)
+shipkit ci --base main              # runs api then gateway in Docker
 
 git checkout main && git checkout -b change-common
 # edit libs/common/commonlib/__init__.py, commit it
@@ -22,8 +22,9 @@ shipkit ci --base main              # common, then api+worker in parallel, then 
 ```
 
 Talking point: the saving is measurable. The second run does 4
-services because everything depends on `common`; the first does 1
-of 4. On a real monorepo that ratio is the whole pitch.
+services because everything depends on `common`; the first does 2
+of 4 (`api` + dependent `gateway`). On a real monorepo that ratio
+is the whole pitch.
 
 ## 2. Release
 

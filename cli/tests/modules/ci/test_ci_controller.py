@@ -126,3 +126,46 @@ def test_controller_no_changes_runs_nothing(tmp_path):
     result = run_ci(repo=repo, config_path=repo / "shipkit.yml", base="HEAD", runner=runner)
     assert runner.ran == []
     assert result.results == []
+
+
+def test_controller_nested_monorepo_strips_git_prefix(tmp_path):
+    """shipkit.yml in a subdirectory of a larger git repo."""
+    from shipkit.modules.ci.controller import run_ci
+
+    git_root = tmp_path / "super"
+    mono = git_root / "examples" / "monorepo"
+    for sub in ("libs/common", "services/api", "services/worker"):
+        (mono / sub).mkdir(parents=True)
+        (mono / sub / "code.py").write_text("x = 1\n")
+    (mono / "shipkit.yml").write_text(YML)
+    (git_root / "README.md").write_text("super\n")
+    git(git_root, "init", "-b", "main")
+    git(git_root, "add", ".")
+    git(git_root, "commit", "-m", "feat: init")
+    git(git_root, "checkout", "-b", "feature")
+    (mono / "services" / "api" / "code.py").write_text("x = 2\n")
+    git(git_root, "add", ".")
+    git(git_root, "commit", "-m", "fix: api")
+
+    runner = RecordingRunner()
+    result = run_ci(
+        repo=mono,
+        config_path=mono / "shipkit.yml",
+        base="main",
+        runner=runner,
+    )
+    assert runner.ran == ["api"]
+    assert result.success is True
+
+
+def test_files_relative_to_monorepo_helper():
+    from shipkit.modules.ci.controller import files_relative_to_monorepo
+
+    git_root = Path("/repo")
+    mono = Path("/repo/examples/monorepo")
+    files = [
+        "examples/monorepo/services/api/x.py",
+        "README.md",
+        "cli/src/x.py",
+    ]
+    assert files_relative_to_monorepo(git_root, mono, files) == ["services/api/x.py"]

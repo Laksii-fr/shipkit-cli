@@ -12,6 +12,18 @@ from shipkit.core.errors import ShipkitError
 from shipkit.modules.release import controller
 
 
+def _resolve_config(config: Path, repo: Path) -> Path:
+    if config.is_absolute():
+        return config
+    under_repo = (repo / config).resolve()
+    if under_repo.is_file():
+        return under_repo
+    under_cwd = (Path.cwd() / config).resolve()
+    if under_cwd.is_file():
+        return under_cwd
+    return under_repo
+
+
 def _show_plan(result) -> None:
     plan = result.plan
     table = Table(title="Release plan" if result.dry_run else "Release done")
@@ -50,7 +62,7 @@ def register(app: typer.Typer) -> None:
         try:
             result = controller.execute_release(
                 repo=repo,
-                config_path=config if config.is_absolute() else repo / config,
+                config_path=_resolve_config(config, repo),
                 dry_run=dry_run,
                 push=push,
                 github=github,

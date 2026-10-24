@@ -15,6 +15,14 @@ inputs:
     description: Path to shipkit.yml.
     required: false
     default: shipkit.yml
+  repo:
+    description: Path to the monorepo root (service paths are relative to this).
+    required: false
+    default: "."
+  all:
+    description: If "true", run every service (ignore the git diff).
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -26,12 +34,20 @@ runs:
 
     - name: Install ShipKit
       shell: bash
-      run: pip install ./cli
+      run: pip install "${{ github.action_path }}/cli"
 
     - name: Run change-aware CI
       shell: bash
-      run: >-
-        shipkit ci
-        --base "${{ inputs.base }}"
-        --max-workers "${{ inputs.max-workers }}"
-        --config "${{ inputs.config }}"
+      run: |
+        set -euo pipefail
+        args=(
+          ci
+          --base "${{ inputs.base }}"
+          --max-workers "${{ inputs.max-workers }}"
+          --config "${{ inputs.config }}"
+          --repo "${{ inputs.repo }}"
+        )
+        if [ "${{ inputs.all }}" = "true" ]; then
+          args+=(--all)
+        fi
+        shipkit "${args[@]}"

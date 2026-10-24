@@ -43,20 +43,37 @@ def test_detect_level_bad_json_falls_back_to_keywords():
 
 
 class FakeContainer:
+    def __init__(self) -> None:
+        self.stopped = False
+        self.removed = False
+
     def logs(self, stream=True, follow=True):
         yield b"INFO starting up\n"
         yield b"ERROR something broke\n"
         yield b'{"level": "warn", "message": "json warning"}\n'
 
+    def stop(self, timeout: int = 5) -> None:
+        self.stopped = True
+
+    def remove(self, force: bool = True) -> None:
+        self.removed = True
+
 
 class FakeContainers:
-    def run(self, image, detach=True):
+    def __init__(self) -> None:
+        self.last_command = None
+        self.last_container = FakeContainer()
+
+    def run(self, image, detach=True, command=None):
         assert detach is True
-        return FakeContainer()
+        self.last_command = command
+        self.last_container = FakeContainer()
+        return self.last_container
 
 
 class FakeDockerClient:
-    containers = FakeContainers()
+    def __init__(self) -> None:
+        self.containers = FakeContainers()
 
 
 class CapturingShipper(LogShipper):
@@ -76,14 +93,31 @@ class CapturingShipper(LogShipper):
 
 def test_run_container_streams_detects_and_ships():
     shipper = CapturingShipper()
+    client = FakeDockerClient()
     count = run_container(
         service="api",
         image="api:latest",
         collector_url="http://unused",
-        docker_client=FakeDockerClient(),
+        docker_client=client,
         shipper=shipper,
     )
     assert count == 3
     assert [line.level for line in shipper.lines] == ["info", "error", "warn"]
     assert all(line.service == "api" for line in shipper.lines)
     assert shipper.lines[2].message == "json warning"
+    assert client.containers.last_container.stopped is True
+    assert client.containers.last_container.removed is True
+
+
+def test_run_container_passes_optional_command():
+    shipper = CapturingShipper()
+    client = FakeDockerClient()
+    run_container(
+        service="demo",
+        image="alpine",
+        collector_url="http://unused",
+        command=["echo", "ERROR boom"],
+        docker_client=client,
+        shipper=shipper,
+    )
+    assert client.containers.last_command == ["echo", "ERROR boom"]

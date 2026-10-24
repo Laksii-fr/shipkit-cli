@@ -122,6 +122,7 @@ Run a container and ship its logs, then search them:
 
 ```bash
 shipkit run api my-api-image
+shipkit run demo alpine echo "ERROR boom"   # optional command replaces image CMD
 shipkit logs --service api --level error --since 1h --grep timeout
 ```
 
@@ -153,6 +154,10 @@ The CLI reads the collector URL from `--collector` or
 
 ### GitHub Action
 
+This repo's `action.yml` is a composite Action. See
+`.github/workflows/demo-ci.yml` for a live example against
+`examples/monorepo`.
+
 ```yaml
 jobs:
   ci:
@@ -165,6 +170,9 @@ jobs:
         with:
           base: main
           max-workers: "4"
+          # config: shipkit.yml
+          # repo: .                 # monorepo root if nested in a larger git repo
+          # all: "false"            # set "true" to run every service
 ```
 
 ## Architecture
@@ -207,7 +215,8 @@ A complete walkthrough, including a demo script and interview
 talking points, is in [DEMO.md](DEMO.md). Short version, on
 `examples/monorepo` (common, api, worker, gateway):
 
-- change only `services/api` → `shipkit ci --base main` runs only `api`
+- change only `services/api` → `shipkit ci --base main` runs `api`,
+  then its dependent `gateway`
 - change `libs/common` → it runs `common`, then `api` + `worker`
   in parallel, then `gateway`
 - `shipkit release --dry-run` in that repo shows the version plan

@@ -10,6 +10,19 @@ from shipkit.core.errors import ShipkitError
 from shipkit.modules.ci import controller, report
 
 
+def _resolve_config(config: Path, repo: Path) -> Path:
+    """Prefer repo/config, then cwd/config, so nested monorepos stay ergonomic."""
+    if config.is_absolute():
+        return config
+    under_repo = (repo / config).resolve()
+    if under_repo.is_file():
+        return under_repo
+    under_cwd = (Path.cwd() / config).resolve()
+    if under_cwd.is_file():
+        return under_cwd
+    return under_repo
+
+
 def register(app: typer.Typer) -> None:
     @app.command("ci")
     def ci_command(
@@ -32,7 +45,7 @@ def register(app: typer.Typer) -> None:
         try:
             result = controller.run_ci(
                 repo=repo,
-                config_path=config if config.is_absolute() else repo / config,
+                config_path=_resolve_config(config, repo),
                 base=base,
                 run_all=run_all,
                 dry_run=dry_run,

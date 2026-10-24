@@ -23,6 +23,10 @@ def register(app: typer.Typer) -> None:
     def run_command(
         service: Annotated[str, typer.Argument(help="Service name for the logs.")],
         image: Annotated[str, typer.Argument(help="Docker image to run.")],
+        command: Annotated[
+            list[str] | None,
+            typer.Argument(help="Optional command for the container (replaces image CMD)."),
+        ] = None,
         collector: Annotated[
             str | None, typer.Option("--collector", help="Collector URL.")
         ] = None,
@@ -30,7 +34,10 @@ def register(app: typer.Typer) -> None:
         """Run a container and ship its logs to the collector."""
         try:
             shipped = controller.run_container(
-                service=service, image=image, collector_url=_collector_url(collector)
+                service=service,
+                image=image,
+                collector_url=_collector_url(collector),
+                command=command,
             )
         except ShipkitError as err:
             print_error(str(err))

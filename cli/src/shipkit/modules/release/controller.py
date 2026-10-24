@@ -90,13 +90,11 @@ def execute_release(
     git.run_git(root, "commit", "-m", f"chore(release): {plan.tag}")
     git.run_git(root, "tag", plan.tag)
 
-    pushed = False
-    if push or github:
-        git.run_git(root, "push", "origin", "HEAD")
-        git.run_git(root, "push", "origin", plan.tag)
-        pushed = True
-
+    # Validate GitHub prerequisites before any network push so failures
+    # are clear (missing token / repo) instead of a confusing remote error.
     release_url: str | None = None
+    auth: str | None = None
+    owner = repo_name = ""
     if github:
         slug = config.release.github_repo or git.remote_repo_slug(root)
         if not slug or "/" not in slug:
@@ -110,6 +108,15 @@ def execute_release(
             raise ShipkitError(
                 "Cannot create a GitHub release: GITHUB_TOKEN is not set."
             )
+
+    pushed = False
+    if push or github:
+        git.run_git(root, "push", "origin", "HEAD")
+        git.run_git(root, "push", "origin", plan.tag)
+        pushed = True
+
+    if github:
+        assert auth is not None  # checked above
         release_url = github_client.create_release(
             owner=owner,
             repo=repo_name,

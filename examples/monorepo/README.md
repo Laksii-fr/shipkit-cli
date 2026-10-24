@@ -22,7 +22,7 @@ this folder with a commit on a branch):
 
 ```bash
 # change only services/api, then:
-shipkit ci --base main          # runs only api (+ nothing else)
+shipkit ci --base main          # runs api, then gateway (depends on api)
 # change libs/common, then:
 shipkit ci --base main          # runs common, then api+worker, then gateway
 shipkit ci --base main --dry-run

@@ -134,3 +134,23 @@ def test_github_client_http_error_is_clear():
         github_client.create_release(
             owner="o", repo="r", tag="v1", name="v1", body="b", token="t", client=client
         )
+
+
+def test_github_without_token_errors_before_push(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path)
+    add_commit(repo, "feat: needs token")
+    # Point origin somewhere so a push would be attempted if we didn't bail first.
+    git_cmd(repo, "remote", "add", "origin", "https://example.invalid/o/r.git")
+    (repo / "shipkit.yml").write_text(
+        YML + "  github_repo: owner/repo\n"
+    )
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    with pytest.raises(ShipkitError, match="GITHUB_TOKEN"):
+        execute_release(
+            repo=repo,
+            config_path=repo / "shipkit.yml",
+            github=True,
+            push=False,
+        )
+    # Local release commit+tag must still exist (writes happen before GitHub checks).
+    assert git.latest_tag(repo) == "v1.5.0"
