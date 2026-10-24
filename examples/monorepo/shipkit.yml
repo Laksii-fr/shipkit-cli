@@ -1,0 +1,27 @@
+services:
+  common:
+    path: libs/common
+    image: python:3.12-slim
+    build: "pip install pytest -q"
+    test: "python -m pytest tests -q"
+  api:
+    path: services/api
+    depends_on: [common]
+    image: python:3.12-slim
+    build: "pip install pytest -q"
+    test: "python -m pytest tests -q"
+  worker:
+    path: services/worker
+    depends_on: [common]
+    image: python:3.12-slim
+    build: "pip install pytest -q"
+    test: "python -m pytest tests -q"
+  gateway:
+    path: services/gateway
+    depends_on: [api]
+    image: python:3.12-slim
+    build: "pip install pytest -q"
+    test: "python -m pytest tests -q"
+
+release:
+  version_file: VERSION

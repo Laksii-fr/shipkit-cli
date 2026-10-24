@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only print the release plan, change nothing.
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ShipKit
+        run: pip install ./cli
+
+      - name: Plan or run the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "false" ]; then
+            shipkit release --config examples/monorepo/shipkit.yml \
+              --repo examples/monorepo --push --github
+          else
+            shipkit release --config examples/monorepo/shipkit.yml \
+              --repo examples/monorepo --dry-run
+          fi

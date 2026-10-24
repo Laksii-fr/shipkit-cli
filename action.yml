@@ -1,0 +1,37 @@
+name: ShipKit CI
+description: Run change-aware CI for a monorepo with ShipKit.
+author: Lakshay Sharma
+
+inputs:
+  base:
+    description: Git ref to diff against.
+    required: false
+    default: main
+  max-workers:
+    description: How many services to run in parallel per layer.
+    required: false
+    default: "4"
+  config:
+    description: Path to shipkit.yml.
+    required: false
+    default: shipkit.yml
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install ShipKit
+      shell: bash
+      run: pip install ./cli
+
+    - name: Run change-aware CI
+      shell: bash
+      run: >-
+        shipkit ci
+        --base "${{ inputs.base }}"
+        --max-workers "${{ inputs.max-workers }}"
+        --config "${{ inputs.config }}"

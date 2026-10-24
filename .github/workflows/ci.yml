@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install both packages
+        run: |
+          pip install -e "cli[dev]"
+          pip install -e "collector[dev]"
+
+      - name: Lint
+        run: |
+          ruff check cli/src cli/tests
+          ruff check collector/app collector/tests
+
+      - name: Test CLI
+        working-directory: cli
+        run: pytest -q
+
+      - name: Test collector
+        working-directory: collector
+        run: pytest -q
